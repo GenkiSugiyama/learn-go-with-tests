@@ -9,10 +9,17 @@ func Sum(numbers []int) int {
 }
 
 // 引数の型を ...[]int とすることで任意の数のスライスを受け取ることができる
-func SumAll(numbersToSum ...[]int) []int {
+// numbersToSum内の各スライスの先頭要素を除いたスライスの合計値を新しいスライスの要素として追加する
+func SumAllTails(numbersToSum ...[]int) []int {
 	var sums []int
 	for _, numbers := range numbersToSum {
-		sums = append(sums, Sum(numbers))
+		if len(numbers) == 0 {
+			sums = append(sums, 0)
+		} else {
+			tail := numbers[1:]
+			sums = append(sums, Sum(tail))
+		}
 	}
+
 	return sums
 }
