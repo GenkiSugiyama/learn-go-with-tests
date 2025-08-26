@@ -14,18 +14,44 @@ type Sleeper interface {
 	Sleep()
 }
 
-type SpySleeper struct {
-	Calls int
+// io.WriterとSleeperインターフェースのどちらも実装するSpy構造体
+// Sleep()とWrite()それぞれで”sleep”, "write"をCallスライスに追加することで、
+// どの順番で呼び出されたかを確認できる。テスト用のSpyとして利用する。
+type CountdownOperationsSpy struct {
+	Calls []string
 }
 
-func (s *SpySleeper) Sleep() {
-	s.Calls++
+// Sleeperインターフェースを実装するためのメソッド
+func (s *CountdownOperationsSpy) Sleep() {
+	s.Calls = append(s.Calls, sleep)
 }
 
-type DefaultSleeper struct{}
+// io.Writerインターフェースを実装するためのメソッド
+func (s *CountdownOperationsSpy) Write(p []byte) (n int, err error) {
+	s.Calls = append(s.Calls, write)
+	return
+}
 
-func (d *DefaultSleeper) Sleep() {
-	time.Sleep(1 * time.Second)
+const write = "write"
+const sleep = "sleep"
+
+// time.Sleep()やMockのSleep()を注入できるようにするための構造体
+// 本番ではtimeの実装を注入したり、テストではSpyを注入したりできる
+type ConfigurableSleeper struct {
+	duration time.Duration
+	sleep    func(time.Duration)
+}
+
+func (c *ConfigurableSleeper) Sleep() {
+	c.sleep(c.duration)
+}
+
+type SpyTime struct {
+	durationSlept time.Duration
+}
+
+func (s *SpyTime) Sleep(duration time.Duration) {
+	s.durationSlept = duration
 }
 
 func Countdown(out io.Writer, sleeper Sleeper) {
@@ -33,11 +59,12 @@ func Countdown(out io.Writer, sleeper Sleeper) {
 		sleeper.Sleep()
 		fmt.Fprintln(out, i)
 	}
+
 	sleeper.Sleep()
 	fmt.Fprint(out, finalWord)
 }
 
 func main() {
-	sleeper := &DefaultSleeper{}
+	sleeper := &ConfigurableSleeper{1 * time.Second, time.Sleep}
 	Countdown(os.Stdout, sleeper)
 }
