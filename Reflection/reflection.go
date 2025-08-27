@@ -5,27 +5,26 @@ import "reflect"
 func walk(x interface{}, fn func(input string)) {
 	val := getValue(x)
 
-	if val.Kind() == reflect.Slice {
-		for i := 0; i < val.Len(); i++ {
-			walk(val.Index(i).Interface(), fn)
-		}
-		return
+	numOfValues := 0
+	var getField func(int) reflect.Value
+
+	// フィールドの型をfield.Kind()で取得する
+	switch val.Kind() {
+	// 文字列だったら、field.String()で値を取得してfnを呼ぶ
+	case reflect.String:
+		fn(val.String())
+	// 取得データが構造体なら再起的にwalkを呼ぶ
+	case reflect.Struct:
+		numOfValues = val.NumField()
+		getField = val.Field
+	// 取得データがスライスなら、各要素に対して再起的にwalkを呼ぶ
+	case reflect.Slice:
+		numOfValues = val.Len()
+		getField = val.Index
 	}
 
-	// reflect.Value型のNumField()メソッドでフィールド数を取得する（※　ポインタ型の値に対してNumField()は使えない）
-	for i := 0; i < val.NumField(); i++ {
-		// 各フィールドの値を取得
-		field := val.Field(i)
-
-		// フィールドの型をfield.Kind()で取得する
-		switch field.Kind() {
-		// 文字列だったら、field.String()で値を取得してfnを呼ぶ
-		case reflect.String:
-			fn(field.String())
-		// 構造体だったら、field.Interface()で値を取得して再帰的にwalkを呼ぶ
-		case reflect.Struct:
-			walk(field.Interface(), fn)
-		}
+	for i := 0; i < numOfValues; i++ {
+		walk(getField(i).Interface(), fn)
 	}
 }
 
