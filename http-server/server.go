@@ -1,18 +1,24 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 )
 
+const jsonContentType = "application/json"
+
 type PlayerStore interface {
 	GetPlayerScore(name string) int
 	RecordWin(name string)
+	GetLeage() []Player
 }
 
 type PlayerServer struct {
 	store PlayerStore
+	// http.Handlerの埋め込み（Embedding）
+	// PlayerServer は http.Handler を埋め込んでいるので、http.Handlerとして扱うことができる
 	http.Handler
 }
 
@@ -25,16 +31,19 @@ func NewPlayerServer(store PlayerStore) *PlayerServer {
 	router.Handle("/league", http.HandlerFunc(p.leagueHandler))
 	router.Handle("/players/", http.HandlerFunc(p.playersHandler))
 
+	// http.ServeMuxはServeHTTPメソッドを持っているので、http.Handlerインターフェースを実装している
+	// PlayerServer は http.Handler を埋め込んでいるので、http.Handlerとして扱うことができる
+	// つまり、PlayerServer は ServeHTTP メソッドを持っている
 	p.Handler = router
 
 	return p
 }
 
-func (p *PlayerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p.Handler.ServeHTTP(w, r)
-}
-
 func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", jsonContentType)
+	// エンコーダを作成するには、io.Writerが必要（http.ResponseWriterがio.Writerを実装している）
+	json.NewEncoder(w).Encode(p.store.GetLeage())
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -62,4 +71,9 @@ func (p *PlayerServer) showScore(w http.ResponseWriter, player string) {
 func (p *PlayerServer) processWin(w http.ResponseWriter, player string) {
 	p.store.RecordWin(player)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+type Player struct {
+	Name string
+	Wins int
 }
