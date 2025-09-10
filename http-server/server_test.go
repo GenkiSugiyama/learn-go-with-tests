@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -155,12 +154,9 @@ func getLeagueFromResponse(t *testing.T, body io.Reader) (league []Player) {
 	// jsonをデコードするには、json.NewDecoderでDecoderを作成し、Decodeメソッドを呼び出す
 	// デコーダを作成するには、io.Readerが必要（http.Response.Bodyがio.Readerを実装している）
 	//Decodeメソッドには変換先となる変数のポインタを渡す
-	err := json.NewDecoder(body).Decode(&league)
+	league, _ = NewLeague(body)
 
-	if err != nil {
-		t.Fatalf("Unable to parse response from server %q into slice of Player, '%v'", body, err)
-	}
-	return
+	return league
 }
 
 func assertLeague(t testing.TB, got, want []Player) {
