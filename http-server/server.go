@@ -12,7 +12,7 @@ const jsonContentType = "application/json"
 type PlayerStore interface {
 	GetPlayerScore(name string) int
 	RecordWin(name string)
-	GetLeage() League
+	GetLeague() League
 }
 
 type PlayerServer struct {
@@ -42,7 +42,7 @@ func NewPlayerServer(store PlayerStore) *PlayerServer {
 func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", jsonContentType)
 	// エンコーダを作成するには、io.Writerが必要（http.ResponseWriterがio.Writerを実装している）
-	json.NewEncoder(w).Encode(p.store.GetLeage())
+	json.NewEncoder(w).Encode(p.store.GetLeague())
 
 	w.WriteHeader(http.StatusOK)
 }
