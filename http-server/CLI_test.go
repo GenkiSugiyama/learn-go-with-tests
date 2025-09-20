@@ -1,6 +1,7 @@
 package poker_test
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -26,15 +27,29 @@ func (s *SpyBlindAlerter) ScheduleAlertAt(duration time.Duration, amount int) {
 	s.alerts = append(s.alerts, scheduledAlert{duration, amount})
 }
 
-var dummySpyAlerter = &SpyBlindAlerter{}
+var dummyBlidAlerter = &SpyBlindAlerter{}
+var dummyPlayerStore = &poker.StubPlayerStore{}
+var dummyStdIn = &bytes.Buffer{}
+var dummyStdOut = &bytes.Buffer{}
 
 func TestCLI(t *testing.T) {
+	t.Run("it prompts the user to enter the number of players", func(t *testing.T) {
+		stdout := &bytes.Buffer{}
+		cli := poker.NewCLI(dummyPlayerStore, dummyStdIn, stdout, dummyBlidAlerter)
+		cli.PlayPoker()
+
+		got := stdout.String()
+		want := poker.PlayerPrompt
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
 	t.Run("it schedules printing of blind values", func(t *testing.T) {
 		in := strings.NewReader("Cleo wins\n")
 		playerStore := &poker.StubPlayerStore{}
 		blindAlerter := &SpyBlindAlerter{}
 
-		cli := poker.NewCLI(playerStore, in, blindAlerter)
+		cli := poker.NewCLI(playerStore, in, dummyStdOut, blindAlerter)
 		cli.PlayPoker()
 
 		cases := []scheduledAlert{
@@ -52,7 +67,7 @@ func TestCLI(t *testing.T) {
 		}
 
 		for i, want := range cases {
-			t.Run(fmt.Sprintf(want.String()), func(t *testing.T) {
+			t.Run(fmt.Sprint(want), func(t *testing.T) {
 				if len(blindAlerter.alerts) <= i {
 					t.Fatalf("alert %d was not scheduled %v", i, blindAlerter.alerts)
 				}
@@ -66,7 +81,7 @@ func TestCLI(t *testing.T) {
 		in := strings.NewReader("Chris wins\n")
 		playerStore := &poker.StubPlayerStore{}
 
-		cli := poker.NewCLI(playerStore, in, dummySpyAlerter)
+		cli := poker.NewCLI(playerStore, in, dummyStdOut, dummyBlidAlerter)
 		cli.PlayPoker()
 
 		poker.AssertPlayerWin(t, playerStore, "Chris")
@@ -76,7 +91,7 @@ func TestCLI(t *testing.T) {
 		in := strings.NewReader("Cleo wins\n")
 		playerStore := &poker.StubPlayerStore{}
 
-		cli := poker.NewCLI(playerStore, in, dummySpyAlerter)
+		cli := poker.NewCLI(playerStore, in, dummyStdOut, dummyBlidAlerter)
 		cli.PlayPoker()
 
 		poker.AssertPlayerWin(t, playerStore, "Cleo")
