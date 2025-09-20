@@ -4,26 +4,36 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"time"
 )
 
 type CLI struct {
 	playerStore PlayerStore
 	in          *bufio.Scanner
+	alerter     BlindAlerter
 }
 
-func NewCLI(store PlayerStore, in io.Reader) *CLI {
+func NewCLI(store PlayerStore, in io.Reader, alerter BlindAlerter) *CLI {
 	return &CLI{
 		playerStore: store,
-		// io.Readerを実装するものをbufio.Scannerでラップする
-		// CLIアプリなので標準入力（os.Stdin）が渡されて、標準入力をスキャンする
-		in: bufio.NewScanner(in),
+		in:          bufio.NewScanner(in),
+		alerter:     alerter,
 	}
 }
 
 func (cli *CLI) PlayPoker() {
+	cli.scheduleBlindAlerts()
 	userInput := cli.readLine()
-	// Scanner.Text()で読み取った文字列を返す
 	cli.playerStore.RecordWin(extractWinner(userInput))
+}
+
+func (cli *CLI) scheduleBlindAlerts() {
+	blinds := []int{100, 200, 300, 400, 500, 600, 800, 1000, 2000, 4000, 8000}
+	blindTime := 0 * time.Second
+	for _, blind := range blinds {
+		cli.alerter.ScheduleAlertAt(blindTime, blind)
+		blindTime = blindTime + 10*time.Second
+	}
 }
 
 func extractWinner(userInput string) string {
@@ -31,8 +41,6 @@ func extractWinner(userInput string) string {
 }
 
 func (cli *CLI) readLine() string {
-	// Scan()は入力から1行を読み取る, 改行まで待機する
 	cli.in.Scan()
-	// Text()はScan()で読み取った文字列を返す
 	return cli.in.Text()
 }

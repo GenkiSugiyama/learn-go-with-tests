@@ -1,6 +1,7 @@
 package poker_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -8,19 +9,24 @@ import (
 	poker "github.com/GenkiSugiyama/learn-go-with-tests/http-server"
 )
 
+type scheduledAlert struct {
+	at     time.Duration
+	amount int
+}
+
+func (s scheduledAlert) String() string {
+	return fmt.Sprintf("%d chips at %v", s.amount, s.at)
+}
+
 type SpyBlindAlerter struct {
-	alerts []struct {
-		scheduledAt time.Duration
-		amount      int
-	}
+	alerts []scheduledAlert
 }
 
 func (s *SpyBlindAlerter) ScheduleAlertAt(duration time.Duration, amount int) {
-	s.alerts = append(s.alerts, struct {
-		scheduledAt time.Duration
-		amount      int
-	}{duration, amount})
+	s.alerts = append(s.alerts, scheduledAlert{duration, amount})
 }
+
+var dummySpyAlerter = &SpyBlindAlerter{}
 
 func TestCLI(t *testing.T) {
 	t.Run("it schedules printing of blind values", func(t *testing.T) {
@@ -31,29 +37,58 @@ func TestCLI(t *testing.T) {
 		cli := poker.NewCLI(playerStore, in, blindAlerter)
 		cli.PlayPoker()
 
-		if len(blindAlerter.alerts) != 1 {
-			t.Fatal("expected a blind alert to be scheduled")
+		cases := []scheduledAlert{
+			{0 * time.Second, 100},
+			{10 * time.Minute, 200},
+			{20 * time.Minute, 300},
+			{30 * time.Minute, 400},
+			{40 * time.Minute, 500},
+			{50 * time.Minute, 600},
+			{60 * time.Minute, 800},
+			{70 * time.Minute, 1000},
+			{80 * time.Minute, 2000},
+			{90 * time.Minute, 4000},
+			{100 * time.Minute, 8000},
+		}
+
+		for i, want := range cases {
+			t.Run(fmt.Sprintf(want.String()), func(t *testing.T) {
+				if len(blindAlerter.alerts) <= i {
+					t.Fatalf("alert %d was not scheduled %v", i, blindAlerter.alerts)
+				}
+
+				got := blindAlerter.alerts[i]
+				assertScheduledAlert(t, got, want)
+			})
 		}
 	})
 	t.Run("record chris win from user imput", func(t *testing.T) {
-		// ユーザーからの入力をシミュレートする
 		in := strings.NewReader("Chris wins\n")
 		playerStore := &poker.StubPlayerStore{}
 
-		cli := poker.NewCLI(playerStore, in)
+		cli := poker.NewCLI(playerStore, in, dummySpyAlerter)
 		cli.PlayPoker()
 
 		poker.AssertPlayerWin(t, playerStore, "Chris")
 	})
 
 	t.Run("record cleo win from user input", func(t *testing.T) {
-		// ユーザーからの入力をシミュレートする
 		in := strings.NewReader("Cleo wins\n")
 		playerStore := &poker.StubPlayerStore{}
 
-		cli := poker.NewCLI(playerStore, in)
+		cli := poker.NewCLI(playerStore, in, dummySpyAlerter)
 		cli.PlayPoker()
 
 		poker.AssertPlayerWin(t, playerStore, "Cleo")
 	})
+}
+
+func assertScheduledAlert(t *testing.T, got, want scheduledAlert) {
+	if got.amount != want.amount {
+		t.Errorf("got amount %d, want %d", got.amount, want.amount)
+	}
+
+	if got.at != want.at {
+		t.Errorf("got scheduled time of %v, want %v", got.at, want.at)
+	}
 }
