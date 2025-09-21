@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"text/template"
 )
 
 const jsonContentType = "application/json"
@@ -30,6 +31,7 @@ func NewPlayerServer(store PlayerStore) *PlayerServer {
 	router := http.NewServeMux()
 	router.Handle("/league", http.HandlerFunc(p.leagueHandler))
 	router.Handle("/players/", http.HandlerFunc(p.playersHandler))
+	router.Handle("/game", http.HandlerFunc(p.game))
 
 	// http.ServeMuxはServeHTTPメソッドを持っているので、http.Handlerインターフェースを実装している
 	// PlayerServer は http.Handler を埋め込んでいるので、http.Handlerとして扱うことができる
@@ -56,6 +58,17 @@ func (p *PlayerServer) playersHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		p.showScore(w, player)
 	}
+}
+
+func (p *PlayerServer) game(w http.ResponseWriter, r *http.Request) {
+	// templateはHTMLを作成するためのパッケージ
+	tmpl, err := template.ParseFiles("game.html")
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("problem loading template: %v", err), http.StatusInternalServerError)
+		return
+	}
+	tmpl.Execute(w, nil)
 }
 
 func (p *PlayerServer) showScore(w http.ResponseWriter, player string) {
