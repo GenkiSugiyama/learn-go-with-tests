@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"strings"
 	"text/template"
+
+	"github.com/gorilla/websocket"
 )
 
-const jsonContentType = "application/json"
+const JsonContentType = "application/json"
 
 type PlayerStore interface {
 	GetPlayerScore(name string) int
@@ -21,28 +23,38 @@ type PlayerServer struct {
 	// http.Handlerの埋め込み（Embedding）
 	// PlayerServer は http.Handler を埋め込んでいるので、http.Handlerとして扱うことができる
 	http.Handler
+	template *template.Template
 }
 
-func NewPlayerServer(store PlayerStore) *PlayerServer {
+const htmlTemplatePath = "game.html"
+
+func NewPlayerServer(store PlayerStore) (*PlayerServer, error) {
 	p := new(PlayerServer)
 
+	tmpl, err := template.ParseFiles(htmlTemplatePath)
+	if err != nil {
+		return nil, fmt.Errorf("problem loading template: %v", err)
+	}
+
+	p.template = tmpl
 	p.store = store
 
 	router := http.NewServeMux()
 	router.Handle("/league", http.HandlerFunc(p.leagueHandler))
 	router.Handle("/players/", http.HandlerFunc(p.playersHandler))
 	router.Handle("/game", http.HandlerFunc(p.game))
+	router.Handle("/ws", http.HandlerFunc(p.webSocket))
 
 	// http.ServeMuxはServeHTTPメソッドを持っているので、http.Handlerインターフェースを実装している
 	// PlayerServer は http.Handler を埋め込んでいるので、http.Handlerとして扱うことができる
 	// つまり、PlayerServer は ServeHTTP メソッドを持っている
 	p.Handler = router
 
-	return p
+	return p, nil
 }
 
 func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", jsonContentType)
+	w.Header().Set("content-type", JsonContentType)
 	// エンコーダを作成するには、io.Writerが必要（http.ResponseWriterがio.Writerを実装している）
 	json.NewEncoder(w).Encode(p.store.GetLeague())
 
@@ -61,14 +73,20 @@ func (p *PlayerServer) playersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *PlayerServer) game(w http.ResponseWriter, r *http.Request) {
-	// templateはHTMLを作成するためのパッケージ
-	tmpl, err := template.ParseFiles("game.html")
+	p.template.Execute(w, nil)
+}
 
-	if err != nil {
-		http.Error(w, fmt.Sprintf("problem loading template: %v", err), http.StatusInternalServerError)
-		return
-	}
-	tmpl.Execute(w, nil)
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+func (p *PlayerServer) webSocket(w http.ResponseWriter, r *http.Request) {
+	conn, _ := wsUpgrader.Upgrade(w, r, nil)
+
+	_, winnerMsg, _ := conn.ReadMessage()
+
+	p.store.RecordWin(string(winnerMsg))
 }
 
 func (p *PlayerServer) showScore(w http.ResponseWriter, player string) {
