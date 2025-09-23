@@ -10,24 +10,25 @@ import (
 )
 
 type GameSpy struct {
-	StartedWith  int
-	FinishedWith string
-	StartCalled  bool
+	StartCalledWith  int
+	FinishCalledWith string
+	StartCalled      bool
 }
 
 func (g *GameSpy) Start(numberOfPlayers int) {
-	g.StartedWith = numberOfPlayers
+	g.StartCalledWith = numberOfPlayers
 	g.StartCalled = true
 }
 
 func (g *GameSpy) Finish(winner string) {
-	g.FinishedWith = winner
+	g.FinishCalledWith = winner
 }
 
 var dummyBlidAlerter = &poker.SpyBlindAlerter{}
 var dummyPlayerStore = &poker.StubPlayerStore{}
 var dummyStdIn = &bytes.Buffer{}
 var dummyStdOut = &bytes.Buffer{}
+var dummyGameSpy = &GameSpy{}
 
 func TestCLI(t *testing.T) {
 	t.Run("it prints an error when a non numeric value is entered and does not start the game", func(t *testing.T) {
@@ -54,8 +55,8 @@ func TestCLI(t *testing.T) {
 
 		assertMessagesSentToUser(t, stdout, poker.PlayerPrompt)
 
-		if game.StartedWith != 7 {
-			t.Errorf("wanted Start called with 7 but got %d", game.StartedWith)
+		if game.StartCalledWith != 7 {
+			t.Errorf("wanted Start called with 7 but got %d", game.StartCalledWith)
 		}
 	})
 
@@ -66,8 +67,8 @@ func TestCLI(t *testing.T) {
 
 		cli.PlayPoker()
 
-		if game.FinishedWith != "Chris" {
-			t.Errorf("expected finish called with 'Chris' but got %q", game.FinishedWith)
+		if game.FinishCalledWith != "Chris" {
+			t.Errorf("expected finish called with 'Chris' but got %q", game.FinishCalledWith)
 		}
 	})
 
@@ -78,8 +79,8 @@ func TestCLI(t *testing.T) {
 
 		cli.PlayPoker()
 
-		if game.FinishedWith != "Cleo" {
-			t.Errorf("expected finish called with 'Cleo' but got %q", game.FinishedWith)
+		if game.FinishCalledWith != "Cleo" {
+			t.Errorf("expected finish called with 'Cleo' but got %q", game.FinishCalledWith)
 		}
 	})
 }
